@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "weel_payments"
+version = "0.1.0"
+description = "Weel payments solution to process incoming transactions requested on Weel cards."
+authors = ["Kevin Patel <kevinmanojpatel@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
