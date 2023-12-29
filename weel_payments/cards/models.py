@@ -12,6 +12,9 @@ class Card(models.Model):
     balance = models.DecimalField(max_digits=12, decimal_places=2)
     active = models.BooleanField(default=True)
 
+    def __str__(self):
+        return f"<Card number='{self.number}' owner='{self.owner_name}' active='{self.active}'>"
+
 
 class CardControl(models.Model):
     CATEGORY = "CATG"
@@ -34,6 +37,9 @@ class CardControl(models.Model):
     value = models.CharField(max_length=30)
     active = models.BooleanField(default=True)
 
+    def __str__(self):
+        return f"<CardControl card='{self.card.number}' type='{self.type}' value='{self.value}'>"
+
 
 class Transaction(models.Model):
     APPROVED = "APPR"
@@ -49,3 +55,6 @@ class Transaction(models.Model):
         default=APPROVED,
     )
     message = models.CharField(max_length=100, default="")
+
+    def __str__(self):
+        return f"<Transaction card='{self.card.number}' amount={self.amount} status='{self.status}'>"

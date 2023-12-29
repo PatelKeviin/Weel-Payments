@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.11"
 django = "^5.0"
 psycopg = {extras = ["binary"], version = "^3.1.16"}
+django-rest-framework = "^0.1.0"
 
 
 [build-system]
