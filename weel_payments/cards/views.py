@@ -4,7 +4,6 @@ from rest_framework import status
 
 from .models import Card, CardControl, Transaction
 from .serializers import CardSerializer, CardControlSerializer, TransactionSerializer
-from .utils import process_transaction
 
 
 class CardListAPIView(APIView):
@@ -109,7 +108,7 @@ class TransactionListAPIView(APIView):
 
     def post(self, request, *args, **kwargs):
         """
-        Process a new transaction against a given card
+        Process a new transaction for the given card against its card controls
         """
         data = {
             "card": request.data.get("card"),
@@ -120,6 +119,95 @@ class TransactionListAPIView(APIView):
 
         serializer = TransactionSerializer(data=data)
         if serializer.is_valid():
-            return process_transaction(serializer.validated_data)
+            try:
+                card = Card.objects.get(id=data["card"], active=True)
+
+                # Apply active card controls
+                controls = CardControl.objects.filter(card=card, active=True)
+                control_violated = False
+
+                for control in controls:
+                    if (
+                        control.type == CardControl.CATEGORY
+                        and control.value != data["merchant_category"]
+                    ):
+                        message = "Category control violation"
+                        control_violated = True
+                    elif (
+                        control.type == CardControl.MERCHANT
+                        and control.value != data["merchant"]
+                    ):
+                        message = "Merchant control violation"
+                        control_violated = True
+                    elif control.type == CardControl.MAX_AMOUNT and data[
+                        "amount"
+                    ] > float(control.value):
+                        message = "Max amount  control violation"
+                        control_violated = True
+                    elif control.type == CardControl.MIN_AMOUNT and data[
+                        "amount"
+                    ] < float(control.value):
+                        message = "Min amount  control violation"
+                        control_violated = True
+
+                    if control_violated:
+                        transaction = Transaction.objects.create(
+                            card=card,
+                            amount=data["amount"],
+                            status=Transaction.DECLINED,
+                            message=message,
+                        )
+
+                        return Response(
+                            {"status": "DECLINED", "reason": message},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                # Check for sufficient balance
+                if card.balance < data["amount"]:
+                    message = "Insufficient balance"
+
+                    transaction = Transaction.objects.create(
+                        card=card,
+                        amount=data["amount"],
+                        status=Transaction.DECLINED,
+                        message=message,
+                    )
+
+                    return Response(
+                        {"status": "DECLINED", "reason": message},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            except Card.DoesNotExist as e:
+                return Response(
+                    {
+                        "message": "Card not found. Please ensure card is valid and exists in our system."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except Exception as e:
+                return Response(
+                    {"message": f"Something went wrong. Please try again later. {e}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            else:
+                # Update the card balance
+                card.balance -= data["amount"]
+                card.save()
+
+                transaction = Transaction.objects.create(
+                    card=card,
+                    amount=data["amount"],
+                    status=Transaction.APPROVED,
+                )
+
+                return Response(
+                    {
+                        "status": "APPROVED",
+                        "id": transaction.id,
+                        "remaining_balance": card.balance,
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -12,7 +12,7 @@ class Card(models.Model):
     exp_date = models.DateField("expiry date")
     cvc_code = models.CharField("security code", max_length=3)
     owner_name = models.CharField(max_length=100)
-    balance = models.DecimalField(max_digits=12, decimal_places=2)
+    balance = models.FloatField()
     active = models.BooleanField(default=True)
 
     class Meta:
@@ -67,7 +67,7 @@ class Transaction(models.Model):
 
     card = models.ForeignKey(Card, on_delete=models.CASCADE)
     timestamp = models.DateTimeField("creation timestamp", db_default=Now())
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.FloatField()
     status = models.CharField(
         max_length=4,
         choices=STATUS,

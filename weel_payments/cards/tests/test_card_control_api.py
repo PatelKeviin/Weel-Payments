@@ -62,65 +62,98 @@ class CardControlListAPITestCase(APITestCase):
 
         self.assertEqual(CardControl.objects.count(), 4)
 
-    # def test_create_card_control_using_invalid_card(self):
-    #     url = reverse("card-controls")
-    #     # Invalid card number
-    #     data = {
-    #         "number": "0000000000000000",
-    #         "cvc_code": "113",
-    #         "exp_date": "2026-06-12",
-    #         "owner_name": "Phillip Patek",
-    #         "balance": "510.15",
-    #         "active": True,
-    #     }
-    #     response = self.client.post(url, data)
-    #     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    def test_create_card_control_using_invalid_payload(self):
+        """
+        Ensure 400 Bad Request response for an invalid card control payload
+        """
+        url = reverse("card-controls")
+        # Invalid card and card control category
+        data = {
+            "card": "00000000-0000-0000-0000-9ce906cdb408",  # Card does not exist
+            "type": "MISC",  # Card control category does not exist
+            "value": "Food",
+            "active": True,
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    #     # Missing required `number` field
-    #     data = {
-    #         "cvc_code": "382",
-    #         "exp_date": "01/31/2023",
-    #         "owner_name": "Chris Brown",
-    #         "balance": "510.15",
-    #         "active": True,
-    #     }
-    #     response = self.client.post(url, data)
-    #     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    def test_list_card_controls(self):
+        """
+        Ensure we can list all existing card controls
+        """
+        # Add a new card
+        card_data = {
+            "number": "5555555555554444",
+            "cvc_code": "382",
+            "exp_date": "2024-12-25",
+            "owner_name": "Chris Brown",
+            "balance": 510.15,
+            "active": True,
+        }
+        card = Card.objects.create(**card_data)
 
-    # def test_list_cards(self):
-    #     """
-    #     Ensure we can list all existing cards
-    #     """
-    #     # Create new cards
-    #     expected_data = [
-    #         {
-    #             "number": "5555555555554444",
-    #             "cvc_code": "123",
-    #             "exp_date": "2024-03-12",
-    #             "owner_name": "Kevin Patel",
-    #             "balance": 500,
-    #             "active": False,
-    #         },
-    #         {
-    #             "number": "2211555555554444",
-    #             "cvc_code": "777",
-    #             "exp_date": "2024-10-29",
-    #             "owner_name": "Steve Smith",
-    #             "balance": 100.99,
-    #             "active": True,
-    #         },
-    #     ]
-    #     Card.objects.create(**expected_data[0])
-    #     Card.objects.create(**expected_data[1])
+        # Add new card controls
+        card_control_data = [
+            {
+                "card": card,
+                "type": CardControl.MIN_AMOUNT,
+                "value": "9.99",
+                "active": True,
+            },
+            {
+                "card": card,
+                "type": CardControl.CATEGORY,
+                "value": "Shopping",
+                "active": True,
+            },
+        ]
+        CardControl.objects.create(**card_control_data[0])
+        CardControl.objects.create(**card_control_data[1])
 
-    #     url = reverse("cards")
-    #     response = self.client.get(url)
+        url = reverse("card-controls")
+        response = self.client.get(url)
 
-    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
-    #     self.assertEqual(
-    #         len(response.data), Card.objects.count()
-    #     )  # Ensure the count matches
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            len(response.data), CardControl.objects.count()
+        )  # Ensure the count matches
 
-    #     for response_obj, expected_obj in zip(response.data, expected_data):
-    #         for key in expected_obj:
-    #             self.assertEqual(response_obj[key], expected_obj[key])
+        for response_obj, expected_obj in zip(response.data, card_control_data):
+            for key in expected_obj:
+                if key == "card":
+                    self.assertEqual(response_obj[key], expected_obj[key].id)
+                else:
+                    self.assertEqual(response_obj[key], expected_obj[key])
+
+
+class CardControlDetailAPITestCase(APITestCase):
+    def test_delete_card_control(self):
+        """
+        Ensure we can delete a card control
+        """
+        # Add a new card
+        card_data = {
+            "number": "5555555555554444",
+            "cvc_code": "382",
+            "exp_date": "2024-12-25",
+            "owner_name": "Chris Brown",
+            "balance": 510.15,
+            "active": True,
+        }
+        card = Card.objects.create(**card_data)
+        card_id = card.id
+        # Add card control
+        card_control_data = {
+            "card": card,
+            "type": CardControl.MERCHANT,
+            "value": "Hungry Jacks",
+            "active": True,
+        }
+        card_control = CardControl.objects.create(**card_control_data)
+
+        url = reverse(
+            "card-control-detail", kwargs={"card_control_id": card_control.id}
+        )
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
