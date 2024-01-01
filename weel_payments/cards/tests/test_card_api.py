@@ -40,7 +40,7 @@ class CardListAPITestCase(APITestCase):
             "cvc_code": "382",
             "exp_date": "01/31/2023",
             "owner_name": "Chris Brown",
-            "balance": "510.15",
+            "balance": 510.15,
             "active": True,
         }
         response = self.client.post(url, data)
@@ -51,7 +51,7 @@ class CardListAPITestCase(APITestCase):
             "cvc_code": "382",
             "exp_date": "01/31/2023",
             "owner_name": "Chris Brown",
-            "balance": "510.15",
+            "balance": 510.15,
             "active": True,
         }
         response = self.client.post(url, data)

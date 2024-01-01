@@ -1,10 +1,13 @@
+import uuid
+
 from django.db import models
 from django.db.models.functions import Now
 
 
 # Create your models here.
 class Card(models.Model):
-    id = models.AutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     number = models.CharField(max_length=16, unique=True)
     exp_date = models.DateField("expiry date")
     cvc_code = models.CharField("security code", max_length=3)
@@ -31,8 +34,10 @@ class CardControl(models.Model):
         MAX_AMOUNT: "Max Amount",
         MIN_AMOUNT: "Min Amount",
     }
-    id = models.AutoField(primary_key=True)
-    card = models.ForeignKey(Card, on_delete=models.CASCADE)
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    card = models.ForeignKey(Card, related_name="controls", on_delete=models.CASCADE)
     type = models.CharField(
         max_length=4,
         choices=CATEGORY_TYPE,
@@ -57,7 +62,9 @@ class Transaction(models.Model):
     APPROVED = "APPR"
     DECLINED = "DEC"
     STATUS = {APPROVED: "Approved", DECLINED: "Declined"}
-    id = models.AutoField(primary_key=True)
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     card = models.ForeignKey(Card, on_delete=models.CASCADE)
     timestamp = models.DateTimeField("creation timestamp", db_default=Now())
     amount = models.DecimalField(max_digits=12, decimal_places=2)

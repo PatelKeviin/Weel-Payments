@@ -8,18 +8,27 @@ class FloatDecimalField(serializers.DecimalField):
         return float(super().to_representation(value))
 
 
-class CardSerializer(serializers.ModelSerializer):
-    balance = FloatDecimalField(max_digits=12, decimal_places=2)
-
-    class Meta:
-        model = Card
-        fields = ["number", "exp_date", "cvc_code", "owner_name", "balance", "active"]
-
-
 class CardControlSerializer(serializers.ModelSerializer):
     class Meta:
         model = CardControl
-        fields = ["card", "type", "value", "active"]
+        fields = ["type", "value", "active", "card"]
+
+
+class CardSerializer(serializers.ModelSerializer):
+    balance = FloatDecimalField(max_digits=12, decimal_places=2)
+    controls = CardControlSerializer(many=True, read_only=True, default=[])
+
+    class Meta:
+        model = Card
+        fields = [
+            "number",
+            "exp_date",
+            "cvc_code",
+            "owner_name",
+            "balance",
+            "active",
+            "controls",
+        ]
 
 
 class TransactionSerializer(serializers.Serializer):
