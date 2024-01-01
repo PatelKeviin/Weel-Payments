@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import Card, CardControl, Transaction
-from .serializers import CardSerializer, CardControlSerializer
+from .serializers import CardSerializer, CardControlSerializer, TransactionSerializer
+from .utils import process_transaction
 
 
 class CardListAPIView(APIView):
@@ -86,6 +87,7 @@ class CardControlDetailAPIView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
+
         card_control_instance.delete()
         return Response(
             {
@@ -97,9 +99,27 @@ class CardControlDetailAPIView(APIView):
 
 class TransactionListAPIView(APIView):
     def get(self, request, *args, **kwargs):
-        # Logic to list transactions
-        pass
+        """
+        List all card transactions, both approved and declined
+        """
+        transactions = Transaction.objects.all()
+        serializer = TransactionSerializer(transactions, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        # Call the process_transaction utility function here
-        pass
+        """
+        Process a new transaction against a given card
+        """
+        data = {
+            "card": request.data.get("card"),
+            "amount": request.data.get("amount"),
+            "merchant": request.data.get("merchant"),
+            "merchant_category": request.data.get("merchant_category"),
+        }
+
+        serializer = TransactionSerializer(data=data)
+        if serializer.is_valid():
+            return process_transaction(serializer.validated_data)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -12,6 +12,10 @@ class Card(models.Model):
     balance = models.DecimalField(max_digits=12, decimal_places=2)
     active = models.BooleanField(default=True)
 
+    class Meta:
+        # UNIQUE contraint for (number) values
+        constraints = [models.UniqueConstraint(fields=["number"], name="unique_card")]
+
     def __str__(self):
         return f"<Card number='{self.number}' owner='{self.owner_name}' active='{self.active}'>"
 
@@ -23,7 +27,7 @@ class CardControl(models.Model):
     MIN_AMOUNT = "MNAM"
     CATEGORY_TYPE = {
         CATEGORY: "Category",
-        MERCHANT: "Merchent",
+        MERCHANT: "Merchant",
         MAX_AMOUNT: "Max Amount",
         MIN_AMOUNT: "Min Amount",
     }
@@ -36,6 +40,14 @@ class CardControl(models.Model):
     )
     value = models.CharField(max_length=30)
     active = models.BooleanField(default=True)
+
+    class Meta:
+        # UNIQUE contraint for (Card, Type, Value) values
+        constraints = [
+            models.UniqueConstraint(
+                fields=["card", "type", "value"], name="unique_card_control"
+            )
+        ]
 
     def __str__(self):
         return f"<CardControl card='{self.card.number}' type='{self.type}' value='{self.value}'>"
@@ -52,9 +64,8 @@ class Transaction(models.Model):
     status = models.CharField(
         max_length=4,
         choices=STATUS,
-        default=APPROVED,
     )
     message = models.CharField(max_length=100, default="")
 
     def __str__(self):
-        return f"<Transaction card='{self.card.number}' amount={self.amount} status='{self.status}'>"
+        return f"<Transaction card='{self.card.number}' amount='{self.amount}' status='{self.status}'>"

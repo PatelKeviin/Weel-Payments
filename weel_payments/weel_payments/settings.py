@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "cards",
+    "cards.apps.CardsConfig",
 ]
 
 MIDDLEWARE = [
@@ -130,4 +130,6 @@ STATIC_URL = "static/"
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+REST_FRAMEWORK = {"TEST_REQUEST_DEFAULT_FORMAT": "json"}
