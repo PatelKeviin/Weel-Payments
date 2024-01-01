@@ -25,8 +25,14 @@ class CardSerializer(serializers.ModelSerializer):
         ]
 
 
-class TransactionSerializer(serializers.Serializer):
+class TransactionPayloadSerializer(serializers.Serializer):
     card = serializers.CharField()
     amount = serializers.DecimalField(max_digits=12, decimal_places=2)
     merchant = serializers.CharField()
     merchant_category = serializers.CharField()
+
+
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ["timestamp", "amount", "status", "message", "card"]

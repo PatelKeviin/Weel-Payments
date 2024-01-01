@@ -3,7 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import Card, CardControl, Transaction
-from .serializers import CardSerializer, CardControlSerializer, TransactionSerializer
+from .serializers import (
+    CardSerializer,
+    CardControlSerializer,
+    TransactionSerializer,
+    TransactionPayloadSerializer,
+)
 
 
 class CardListAPIView(APIView):
@@ -117,7 +122,7 @@ class TransactionListAPIView(APIView):
             "merchant_category": request.data.get("merchant_category"),
         }
 
-        serializer = TransactionSerializer(data=data)
+        serializer = TransactionPayloadSerializer(data=data)
         if serializer.is_valid():
             try:
                 card = Card.objects.get(id=data["card"], active=True)

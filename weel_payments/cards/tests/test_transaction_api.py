@@ -164,3 +164,50 @@ class TransactionListAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["status"], "DECLINED")
         self.assertEqual(response.data["reason"], "Insufficient balance")
+
+    def test_list_transactions(self):
+        """
+        Ensure we can list all existing processed card transactions, both approved and declined
+        """
+        # Add a new card
+        card_data = {
+            "number": "5555555555554444",
+            "cvc_code": "382",
+            "exp_date": "2024-12-25",
+            "owner_name": "Chris Brown",
+            "balance": 55510.15,
+            "active": True,
+        }
+        card = Card.objects.create(**card_data)
+        card_id = card.id
+
+        # Add new transactions
+        expected_data = [
+            {
+                "card": card,
+                "amount": 9950,
+                "status": Transaction.DECLINED,
+            },
+            {
+                "card": card,
+                "amount": 699.99,
+                "status": Transaction.APPROVED,
+            },
+        ]
+        Transaction.objects.create(**expected_data[0])
+        Transaction.objects.create(**expected_data[1])
+
+        url = reverse("transactions")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            len(response.data), Transaction.objects.count()
+        )  # Ensure the count matches
+
+        for response_obj, expected_obj in zip(response.data, expected_data):
+            for key in expected_obj:
+                if key == "card":
+                    self.assertEqual(response_obj[key], expected_obj[key].id)
+                else:
+                    self.assertEqual(response_obj[key], expected_obj[key])
