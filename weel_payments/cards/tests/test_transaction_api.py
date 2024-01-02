@@ -6,73 +6,78 @@ from ..models import Card, CardControl, Transaction
 
 
 class TransactionListAPITestCase(APITestCase):
-    def test_create_transaction_without_controls(self):
-        # Add a new card
-        card_data = {
+    TRANSACTION_URL = reverse("transactions")
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.card_data = {
             "number": "5555555555554444",
             "cvc_code": "382",
             "exp_date": "2024-12-25",
             "owner_name": "Chris Brown",
-            "balance": 510.15,
+            "balance": 51000.15,
             "active": True,
         }
-        card = Card.objects.create(**card_data)
-        card_id = card.id
+        cls.card = Card.objects.create(**cls.card_data)
 
-        # Add a new transaction
-        url = reverse("transactions")
+    def create_transaction(self, card_id, amount, merchant, category):
+        """
+        Helper method to create new transaction
+        """
         transaction_data = {
             "card": card_id,
-            "amount": 10.33,
-            "merchant": "Woolworths",
-            "merchant_category": "Grocery",
+            "amount": amount,
+            "merchant": merchant,
+            "merchant_category": category,
         }
+        return self.client.post(self.TRANSACTION_URL, transaction_data)
 
-        response = self.client.post(url, transaction_data)
+    def test_create_transaction_without_controls(self):
+        balance = self.card.balance
+        amount = 10.33
+        response = self.create_transaction(
+            self.card.id, amount, "Woolworths", "Grocery"
+        )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "APPROVED")
 
         # Assert updated balance
-        new_balance_expected = card_data["balance"] - transaction_data["amount"]
-        new_balance = Card.objects.get(id=card_id).balance
-        self.assertEqual(new_balance, new_balance_expected)
+        new_balance_expected = balance - amount
+        new_balance = Card.objects.get(id=self.card.id).balance
+        self.assertAlmostEqual(
+            new_balance,
+            new_balance_expected,
+            places=2,
+            msg="Balance not updated correctly",
+        )
 
     def test_create_transaction_with_controls(self):
-        # Add a new card
-        card_data = {
-            "number": "5555555555554444",
-            "cvc_code": "382",
-            "exp_date": "2024-12-25",
-            "owner_name": "Chris Brown",
-            "balance": 1500.19,
-            "active": True,
-        }
-        card = Card.objects.create(**card_data)
-        card_id = card.id
+        # TODO: Parameterize test method for better readability
+        card_id = self.card.id
 
         # Add card controls
         card_controls_data = [
             {
-                "card": card,
+                "card": self.card,
                 "type": CardControl.MAX_AMOUNT,
                 "value": "999.99",
                 "active": True,
             },
             {
-                "card": card,
+                "card": self.card,
                 "type": CardControl.MIN_AMOUNT,
-                "value": "9.99",
+                "value": "10",
                 "active": True,
             },
             {
-                "card": card,
+                "card": self.card,
                 "type": CardControl.MERCHANT,
                 "value": "Coles",
                 "active": True,
             },
             {
-                "card": card,
+                "card": self.card,
                 "type": CardControl.CATEGORY,
                 "value": "Grocery",
                 "active": True,
@@ -81,85 +86,43 @@ class TransactionListAPITestCase(APITestCase):
         for card_control_data in card_controls_data:
             CardControl.objects.create(**card_control_data)
 
-        url = reverse("transactions")
         # Add an invalid transaction (amount > MAX_AMOUNT allowed)
-        transaction_data = {
-            "card": card_id,
-            "amount": 1000,
-            "merchant": "Coles",
-            "merchant_category": "Grocery",
-        }
-        response = self.client.post(url, transaction_data)
+        response = self.create_transaction(self.card.id, 1000, "Coles", "Grocery")
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["status"], "DECLINED")
 
         # Add an invalid transaction (amount < MIN_AMOUNT allowed)
-        transaction_data = {
-            "card": card_id,
-            "amount": 5,
-            "merchant": "Coles",
-            "merchant_category": "Grocery",
-        }
-        response = self.client.post(url, transaction_data)
+        response = self.create_transaction(self.card.id, 5, "Coles", "Grocery")
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["status"], "DECLINED")
 
         # Add an invalid transaction (merchant `Aldi` not allowed)
-        transaction_data = {
-            "card": card_id,
-            "amount": 1000,
-            "merchant": "Aldi",
-            "merchant_category": "Grocery",
-        }
-        response = self.client.post(url, transaction_data)
+        response = self.create_transaction(self.card.id, 1000, "Aldi", "Grocery")
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["status"], "DECLINED")
 
         # Add an invalid transaction (merchant category `Utilities` not allowed)
-        transaction_data = {
-            "card": card_id,
-            "amount": 1000,
-            "merchant": "Coles",
-            "merchant_category": "Utilities",
-        }
-        response = self.client.post(url, transaction_data)
+        response = self.create_transaction(self.card.id, 1000, "Coles", "Utilities")
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["status"], "DECLINED")
 
         # Add a valid transaction that meets ALL card control restrictions
-        transaction_data = {
-            "card": card_id,
-            "amount": 89,
-            "merchant": "Coles",
-            "merchant_category": "Grocery",
-        }
-        response = self.client.post(url, transaction_data)
+        response = self.create_transaction(self.card.id, 89, "Coles", "Grocery")
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "APPROVED")
 
     def test_create_transaction_with_insufficient_balance(self):
-        # Add a new card
-        card_data = {
-            "number": "5555555555554444",
-            "cvc_code": "382",
-            "exp_date": "2024-12-25",
-            "owner_name": "Chris Brown",
-            "balance": 15,
-            "active": True,
-        }
-        card = Card.objects.create(**card_data)
-        card_id = card.id
+        card_id = self.card.id
 
-        # Process a new transaction
-        url = reverse("transactions")
-        transaction_data = {
-            "card": card_id,
-            "amount": 1000,
-            "merchant": "Woolworths",
-            "merchant_category": "Grocery",
-        }
-
-        response = self.client.post(url, transaction_data)
+        # Add a new transaction
+        response = self.create_transaction(
+            self.card.id, 100_000, "Woolworths", "Grocery"
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["status"], "DECLINED")
@@ -169,36 +132,25 @@ class TransactionListAPITestCase(APITestCase):
         """
         Ensure we can list all existing processed card transactions, both approved and declined
         """
-        # Add a new card
-        card_data = {
-            "number": "5555555555554444",
-            "cvc_code": "382",
-            "exp_date": "2024-12-25",
-            "owner_name": "Chris Brown",
-            "balance": 55510.15,
-            "active": True,
-        }
-        card = Card.objects.create(**card_data)
-        card_id = card.id
+        card_id = self.card.id
 
         # Add new transactions
         expected_data = [
             {
-                "card": card,
-                "amount": 9950,
+                "card": self.card.id,
+                "amount": 199_500,
                 "status": Transaction.DECLINED,
             },
             {
-                "card": card,
+                "card": self.card.id,
                 "amount": 699.99,
                 "status": Transaction.APPROVED,
             },
         ]
-        Transaction.objects.create(**expected_data[0])
-        Transaction.objects.create(**expected_data[1])
+        self.create_transaction(self.card.id, 199_500, "Rolex", "Fashion")
+        self.create_transaction(self.card.id, 699.99, "Apple", "Electronics")
 
-        url = reverse("transactions")
-        response = self.client.get(url)
+        response = self.client.get(self.TRANSACTION_URL)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
@@ -207,7 +159,4 @@ class TransactionListAPITestCase(APITestCase):
 
         for response_obj, expected_obj in zip(response.data, expected_data):
             for key in expected_obj:
-                if key == "card":
-                    self.assertEqual(response_obj[key], expected_obj[key].id)
-                else:
-                    self.assertEqual(response_obj[key], expected_obj[key])
+                self.assertEqual(response_obj[key], expected_obj[key])

@@ -72,7 +72,7 @@ class CardControlListAPIView(APIView):
 class CardControlDetailAPIView(APIView):
     def get_object(self, card_control_id):
         """
-        Helper method to get the object with given card_control_id
+        Helper method to get the object with given `card_control_id`
         """
         try:
             return CardControl.objects.get(id=card_control_id)

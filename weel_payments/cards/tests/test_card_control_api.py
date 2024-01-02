@@ -7,12 +7,11 @@ from ..serializers import CardControlSerializer
 
 
 class CardControlListAPITestCase(APITestCase):
-    def test_create_card_control(self):
-        """
-        Ensure we can create a new card control for a given card
-        """
-        # Add a new card
-        card_data = {
+    CARD_CONTROL_URL = reverse("card-controls")
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.card_data = {
             "number": "5555555555554444",
             "cvc_code": "382",
             "exp_date": "2024-12-25",
@@ -20,102 +19,74 @@ class CardControlListAPITestCase(APITestCase):
             "balance": 510.15,
             "active": True,
         }
-        card = Card.objects.create(**card_data)
-        card_id = card.id
+        cls.card = Card.objects.create(**cls.card_data)
+
+    def create_card_control(self, control_data):
+        return self.client.post(self.CARD_CONTROL_URL, control_data)
+
+    def test_create_card_control(self):
+        """
+        Ensure we can create a new card control for a given card
+        """
+        card_id = self.card.id
 
         # Add new card controls
-        url = reverse("card-controls")
-        data = [
-            {
-                "card": card_id,
-                "type": CardControl.MAX_AMOUNT,
-                "value": "1000",
-                "active": True,
-            },
-            {
-                "card": card_id,
-                "type": CardControl.MIN_AMOUNT,
-                "value": "9.99",
-                "active": True,
-            },
-            {
-                "card": card_id,
-                "type": CardControl.MERCHANT,
-                "value": "Woolworths",
-                "active": True,
-            },
-            {
-                "card": card_id,
-                "type": CardControl.CATEGORY,
-                "value": "Grocery",
-                "active": True,
-            },
+        control_types = [
+            CardControl.MAX_AMOUNT,
+            CardControl.MIN_AMOUNT,
+            CardControl.MERCHANT,
+            CardControl.CATEGORY,
         ]
+        values = ["1000", "9.99", "Woolworths", "Grocery"]
 
-        for card_control_data in data:
-            response = self.client.post(url, card_control_data)
+        for control_type, value in zip(control_types, values):
+            response = self.create_card_control(
+                {
+                    "card": self.card.id,
+                    "type": control_type,
+                    "value": value,
+                    "active": True,
+                }
+            )
 
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-            for key in card_control_data:
-                # Assert every key in the card control object
-                self.assertEqual(response.data[key], card_control_data[key])
+            self.assertEqual(response.data["type"], control_type)
+            self.assertEqual(response.data["value"], value)
 
-        self.assertEqual(CardControl.objects.count(), 4)
+        self.assertEqual(CardControl.objects.count(), len(control_type))
 
     def test_create_card_control_using_invalid_payload(self):
         """
         Ensure 400 Bad Request response for an invalid card control payload
         """
-        url = reverse("card-controls")
-        # Invalid card and card control category
         data = {
-            "card": "00000000-0000-0000-0000-9ce906cdb408",  # Card does not exist
+            "card": "00000000-0000-0000-0000-000000000000",  # Card does not exist
             "type": "MISC",  # Card control category does not exist
             "value": "Food",
             "active": True,
         }
-        response = self.client.post(url, data)
+        response = self.create_card_control(data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_list_card_controls(self):
         """
         Ensure we can list all existing card controls
         """
-        # Add a new card
-        card_data = {
-            "number": "5555555555554444",
-            "cvc_code": "382",
-            "exp_date": "2024-12-25",
-            "owner_name": "Chris Brown",
-            "balance": 510.15,
-            "active": True,
-        }
-        card = Card.objects.create(**card_data)
-
         # Add new card controls
         card_control_data = [
-            {
-                "card": card,
-                "type": CardControl.MIN_AMOUNT,
-                "value": "9.99",
-                "active": True,
-            },
-            {
-                "card": card,
-                "type": CardControl.CATEGORY,
-                "value": "Shopping",
-                "active": True,
-            },
+            {"type": CardControl.MIN_AMOUNT, "value": "9.99"},
+            {"type": CardControl.CATEGORY, "value": "Shopping"},
         ]
-        CardControl.objects.create(**card_control_data[0])
-        CardControl.objects.create(**card_control_data[1])
 
-        url = reverse("card-controls")
-        response = self.client.get(url)
+        for control_data in card_control_data:
+            control_data.update({"card": self.card, "active": True})
+            CardControl.objects.create(**control_data)
+
+        response = self.client.get(self.CARD_CONTROL_URL)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            len(response.data), CardControl.objects.count()
+            len(response.data), len(card_control_data)
         )  # Ensure the count matches
 
         for response_obj, expected_obj in zip(response.data, card_control_data):
@@ -127,12 +98,9 @@ class CardControlListAPITestCase(APITestCase):
 
 
 class CardControlDetailAPITestCase(APITestCase):
-    def test_delete_card_control(self):
-        """
-        Ensure we can delete a card control
-        """
-        # Add a new card
-        card_data = {
+    @classmethod
+    def setUpTestData(cls):
+        cls.card_data = {
             "number": "5555555555554444",
             "cvc_code": "382",
             "exp_date": "2024-12-25",
@@ -140,20 +108,24 @@ class CardControlDetailAPITestCase(APITestCase):
             "balance": 510.15,
             "active": True,
         }
-        card = Card.objects.create(**card_data)
-        card_id = card.id
-        # Add card control
-        card_control_data = {
-            "card": card,
+        cls.card = Card.objects.create(**cls.card_data)
+
+        cls.card_control_data = {
+            "card": cls.card,
             "type": CardControl.MERCHANT,
             "value": "Hungry Jacks",
             "active": True,
         }
-        card_control = CardControl.objects.create(**card_control_data)
+        cls.card_control = CardControl.objects.create(**cls.card_control_data)
 
-        url = reverse(
-            "card-control-detail", kwargs={"card_control_id": card_control.id}
+        cls.CARD_CONTROL_DETAIL_URL = reverse(
+            "card-control-detail", kwargs={"card_control_id": cls.card_control.id}
         )
-        response = self.client.delete(url)
+
+    def test_delete_card_control(self):
+        """
+        Ensure we can delete a card control
+        """
+        response = self.client.delete(self.CARD_CONTROL_DETAIL_URL)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

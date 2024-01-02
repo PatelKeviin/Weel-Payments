@@ -4,8 +4,11 @@ from django.db import models
 from django.db.models.functions import Now
 
 
-# Create your models here.
 class Card(models.Model):
+    """
+    Represents a Weel card
+    """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     number = models.CharField(max_length=16, unique=True)
@@ -16,14 +19,21 @@ class Card(models.Model):
     active = models.BooleanField(default=True)
 
     class Meta:
-        # UNIQUE contraint for (number) values
+        # Unique constraint to ensure each card number is unique
         constraints = [models.UniqueConstraint(fields=["number"], name="unique_card")]
 
     def __str__(self):
+        """
+        Returns a string representation of the Card instance
+        """
         return f"<Card number='{self.number}' owner='{self.owner_name}' active='{self.active}'>"
 
 
 class CardControl(models.Model):
+    """
+    Model to set various controls on a Card
+    """
+
     CATEGORY = "CATG"
     MERCHANT = "MCHT"
     MAX_AMOUNT = "MXAM"
@@ -47,7 +57,7 @@ class CardControl(models.Model):
     active = models.BooleanField(default=True)
 
     class Meta:
-        # UNIQUE contraint for (Card, Type, Value) values
+        # Unique constraint for the combination of card, type, and value
         constraints = [
             models.UniqueConstraint(
                 fields=["card", "type", "value"], name="unique_card_control"
@@ -55,10 +65,17 @@ class CardControl(models.Model):
         ]
 
     def __str__(self):
+        """
+        Returns a string representation of the CardControl instance
+        """
         return f"<CardControl card='{self.card.number}' type='{self.type}' value='{self.value}'>"
 
 
 class Transaction(models.Model):
+    """
+    Represents a financial transaction made using a Weel Card
+    """
+
     APPROVED = "APPR"
     DECLINED = "DEC"
     STATUS = {APPROVED: "Approved", DECLINED: "Declined"}
@@ -75,4 +92,7 @@ class Transaction(models.Model):
     message = models.CharField(max_length=100, default="")
 
     def __str__(self):
+        """
+        Returns a string representation of the Transaction instance
+        """
         return f"<Transaction card='{self.card.number}' amount='{self.amount}' status='{self.status}'>"
